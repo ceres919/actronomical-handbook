@@ -239,3 +239,95 @@ class Planet(
         super.draw(finalMatrix)
     }
 }
+
+class Moon(
+    context: Context,
+    radius: Float,
+    textureResId: Int,
+    private val planet: Planet,
+    private val orbitRadius: Float,
+    private val orbitSpeed: Float
+) : CelestialObject(context, radius, textureResId) {
+
+    private var angle: Float = 0.0f
+
+    override fun draw(mvpMatrix: FloatArray) {
+        angle += orbitSpeed
+
+        val planetModelMatrix = FloatArray(16)
+        Matrix.setIdentityM(planetModelMatrix, 0)
+        Matrix.rotateM(planetModelMatrix, 0, planet.orbitAngle, 0f, 1f, 0f)
+        Matrix.translateM(planetModelMatrix, 0, planet.orbitRadius, 0f, 0f)
+
+        val moonRotationMatrix = FloatArray(16)
+        Matrix.setIdentityM(moonRotationMatrix, 0)
+        Matrix.rotateM(moonRotationMatrix, 0, angle, 0f, 1f, 0f)
+        Matrix.translateM(moonRotationMatrix, 0, orbitRadius, 0f, 0f)
+
+        val finalMatrix = FloatArray(16)
+        Matrix.multiplyMM(finalMatrix, 0, planetModelMatrix, 0, moonRotationMatrix, 0)
+        Matrix.multiplyMM(finalMatrix, 0, mvpMatrix, 0, finalMatrix, 0)
+
+        super.draw(finalMatrix)
+    }
+}
+
+
+
+class Orbit(private val radius: Float, private val segments: Int = 100) {
+    private var shaderProgram: ShaderCompiler
+    private val vertexBuffer: FloatBuffer
+
+    init {
+        val vertices = FloatArray(segments * 3)
+        val angleStep = (2.0 * Math.PI / segments).toFloat()
+
+        for (i in 0 until segments) {
+            val angle = i * angleStep
+            vertices[i * 3] = (radius * Math.cos(angle.toDouble())).toFloat()
+            vertices[i * 3 + 1] = 0f
+            vertices[i * 3 + 2] = (radius * Math.sin(angle.toDouble())).toFloat()
+        }
+
+        vertexBuffer = ByteBuffer.allocateDirect(vertices.size * 4)
+            .order(ByteOrder.nativeOrder())
+            .asFloatBuffer()
+            .put(vertices)
+        vertexBuffer.position(0)
+        shaderProgram = ShaderCompiler(VERTEX_SHADER_CODE, FRAGMENT_SHADER_CODE)
+    }
+
+    fun draw(mvpMatrix: FloatArray) {
+        shaderProgram.use()
+
+        val positionHandle = GLES20.glGetAttribLocation(shaderProgram.programId, "a_Position")
+        val mvpMatrixHandle = GLES20.glGetUniformLocation(shaderProgram.programId, "u_MVPMatrix")
+
+        GLES20.glUniformMatrix4fv(mvpMatrixHandle, 1, false, mvpMatrix, 0)
+
+        GLES20.glEnableVertexAttribArray(positionHandle)
+        GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, vertexBuffer)
+
+        GLES20.glDrawArrays(GLES20.GL_LINE_LOOP, 0, segments)
+
+        GLES20.glDisableVertexAttribArray(positionHandle)
+    }
+
+    companion object {
+        private const val VERTEX_SHADER_CODE = """
+            attribute vec4 a_Position;
+            uniform mat4 u_MVPMatrix;
+
+            void main() {
+                gl_Position = u_MVPMatrix * a_Position;
+            }
+        """
+
+        private const val FRAGMENT_SHADER_CODE = """
+            precision mediump float;
+            void main() {
+                gl_FragColor = vec4(1.0, 1.0, 1.0, 0.2);  // Белый цвет с прозрачностью 50%
+            }
+        """
+    }
+}
