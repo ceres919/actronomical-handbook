@@ -14,7 +14,9 @@ abstract class Shape {
 class OpenGLRenderer(private var context: Context) : GLSurfaceView.Renderer {
     private lateinit var square: Square
     private lateinit var sun: Sun
+    private lateinit var moon: Moon
     private lateinit var planets: List<Planet>
+    private lateinit var orbits: List<Orbit>
 
     private val projectionMatrix = FloatArray(16)
     private val viewMatrix = FloatArray(16)
