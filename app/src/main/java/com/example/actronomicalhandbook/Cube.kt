@@ -1,12 +1,13 @@
 package com.example.actronomicalhandbook
 
 import android.opengl.GLES20
+import android.opengl.Matrix
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.ShortBuffer
 
-class Cube : Shape() {
+class Cube {
     private var program: Int = 0
     private var edgeProgram: Int = 0
     private val vertexBuffer: FloatBuffer
@@ -44,10 +45,7 @@ class Cube : Shape() {
         vertexBuffer = createFloatBuffer(vertices)
         indexBuffer = createShortBuffer(indices)
         edgeBuffer = createShortBuffer(edges)
-    }
 
-    fun init() {
-        // Программа для граней куба (с прозрачностью)
         val vertexShaderCode = """
             attribute vec4 vPosition;
             uniform mat4 uMVPMatrix;
@@ -73,7 +71,6 @@ class Cube : Shape() {
             GLES20.glLinkProgram(it)
         }
 
-        // Программа для рёбер (белые рёбра)
         val edgeFragmentShaderCode = """
             precision mediump float;
             void main() {
@@ -90,8 +87,16 @@ class Cube : Shape() {
         }
     }
 
-    override fun draw(mvpMatrix: FloatArray) {
-        // Рендерим грани куба с прозрачностью
+    fun draw(mvpMatrix: FloatArray, planetRadius: Float) {
+        val scaleFactor = planetRadius * 1.1f
+
+        val scaledMatrix = FloatArray(16)
+        Matrix.setIdentityM(scaledMatrix, 0)
+        Matrix.scaleM(scaledMatrix, 0, scaleFactor, scaleFactor, scaleFactor)  // Масштабируем куб
+
+        val finalMatrix = FloatArray(16)
+        Matrix.multiplyMM(finalMatrix, 0, mvpMatrix, 0, scaledMatrix, 0)
+
         GLES20.glUseProgram(program)
 
         val positionHandle = GLES20.glGetAttribLocation(program, "vPosition")
@@ -101,10 +106,9 @@ class Cube : Shape() {
         GLES20.glEnableVertexAttribArray(positionHandle)
         GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, vertexBuffer)
 
-        GLES20.glUniformMatrix4fv(mvpMatrixHandle, 1, false, mvpMatrix, 0)
-        GLES20.glUniform1f(alphaHandle, 0.1f)  // Прозрачность 50%
+        GLES20.glUniformMatrix4fv(mvpMatrixHandle, 1, false, finalMatrix, 0)
+        GLES20.glUniform1f(alphaHandle, 0.5f)
 
-        // Включаем режим смешивания для прозрачности
         GLES20.glEnable(GLES20.GL_BLEND)
         GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
 
@@ -113,7 +117,6 @@ class Cube : Shape() {
         GLES20.glDisableVertexAttribArray(positionHandle)
         GLES20.glDisable(GLES20.GL_BLEND)
 
-        // Рендерим рёбра куба
         GLES20.glUseProgram(edgeProgram)
 
         val edgePositionHandle = GLES20.glGetAttribLocation(edgeProgram, "vPosition")
@@ -122,13 +125,13 @@ class Cube : Shape() {
         GLES20.glEnableVertexAttribArray(edgePositionHandle)
         GLES20.glVertexAttribPointer(edgePositionHandle, 3, GLES20.GL_FLOAT, false, 0, vertexBuffer)
 
-        GLES20.glUniformMatrix4fv(edgeMvpMatrixHandle, 1, false, mvpMatrix, 0)
+        GLES20.glUniformMatrix4fv(edgeMvpMatrixHandle, 1, false, finalMatrix, 0)
 
-        // Рисуем рёбра как линии
-        GLES20.glLineWidth(5f)
+//        GLES20.glLineWidth(5f)
         GLES20.glDrawElements(GLES20.GL_LINES, edges.size, GLES20.GL_UNSIGNED_SHORT, edgeBuffer)
 
         GLES20.glDisableVertexAttribArray(edgePositionHandle)
+//        GLES20.glLineWidth(1f)
     }
 
     private fun createFloatBuffer(data: FloatArray): FloatBuffer {

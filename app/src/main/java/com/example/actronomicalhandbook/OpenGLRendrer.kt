@@ -7,17 +7,14 @@ import android.opengl.Matrix
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
-abstract class Shape {
-    abstract fun draw(mvpMatrix: FloatArray)
-}
-
 class OpenGLRenderer(private var context: Context) : GLSurfaceView.Renderer {
     private lateinit var square: Square
     private lateinit var sun: Sun
     private lateinit var moon: Moon
     private lateinit var planets: List<Planet>
     private lateinit var orbits: List<Orbit>
-
+    private lateinit var cube: Cube
+    private var selectedPlanetIndex = 0
     private val projectionMatrix = FloatArray(16)
     private val viewMatrix = FloatArray(16)
     private val mvpMatrix = FloatArray(16)
@@ -29,6 +26,7 @@ class OpenGLRenderer(private var context: Context) : GLSurfaceView.Renderer {
         GLES20.glClearColor(0f, 0f, 0f, 1f)
 
         square = Square(context)
+        cube = Cube()
         sun = Sun(context, 0.6f, R.drawable.sun)
         planets = listOf(
             Planet(context, 0.15f, R.drawable.mercury, 1.0f, 1.1f, 0.1f),
@@ -56,6 +54,7 @@ class OpenGLRenderer(private var context: Context) : GLSurfaceView.Renderer {
         sun.draw(mvpMatrix)
         planets.forEach { it.draw(mvpMatrix) }
         moon.draw(mvpMatrix)
+        cube.draw(mvpMatrix, 1f)
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -63,5 +62,9 @@ class OpenGLRenderer(private var context: Context) : GLSurfaceView.Renderer {
         val ratio: Float = width.toFloat() / height.toFloat()
         Matrix.setLookAtM(viewMatrix, 0, 0f, 3f, -10f, 0f, 0f, 0f, 0f, 1f, 0f)
         Matrix.frustumM(projectionMatrix, 0, -ratio, ratio, -1f, 1f, 1f, 50f)
+    }
+
+    fun setSelectedPlanet(index: Int) {
+        selectedPlanetIndex = index
     }
 }
