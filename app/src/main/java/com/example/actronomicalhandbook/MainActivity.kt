@@ -13,14 +13,12 @@ import androidx.navigation.compose.rememberNavController
 import android.content.Context
 import android.opengl.GLSurfaceView
 import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
@@ -42,85 +40,69 @@ fun MainNavRouter() {
     NavHost(navController = navController, startDestination = "news") {
         composable("news") { NewsBanner(navController) }
         composable("opengl") { OpenGLScreen(navController) }
+//        composable("moon_info") { InfoScreen() }
     }
 }
 
-class MyGLSurfaceView(context: Context) : GLSurfaceView(context) {
-    private var renderer : OpenGLRenderer
+class MyGLSurfaceView(context: Context, private val renderer: OpenGLRenderer) : GLSurfaceView(context) {
     init {
         setEGLContextClientVersion(2)
-        renderer = OpenGLRenderer(context)
         setRenderer(renderer)
     }
+
     fun setSelectedPlanet(index: Int) {
-        renderer.setSelectedPlanet(index)
+        renderer.setSelectedObjectIndex(index)
     }
 }
 
 @Composable
 fun OpenGLScreen(navController: NavController) {
     var selectedPlanetIndex by remember { mutableStateOf(0) }
-    val planetCount = 9
+    val planetCount = 10
 
-    Box(modifier = Modifier
-        .fillMaxWidth()
-        .background(color = Color.Transparent)
+    val context = LocalContext.current
+    val renderer = remember { OpenGLRenderer(context) }
 
-    ) {
+    Box() {
         AndroidView(
-            factory = { context ->
-                MyGLSurfaceView(context).apply {
+            factory = { ctx ->
+                MyGLSurfaceView(ctx, renderer).apply {
                     setSelectedPlanet(selectedPlanetIndex)
                 }
             },
+            update = { view ->
+                view.setSelectedPlanet(selectedPlanetIndex)
+            },
             modifier = Modifier.fillMaxSize()
         )
+    }
 
-        Row(
-            modifier = Modifier
-                .padding(5.dp)
-                .background(color = Color.Transparent)
-                .align(Alignment.BottomCenter),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            Button(
-                onClick = {
-                    selectedPlanetIndex =
-                        (selectedPlanetIndex - 1).takeIf { it >= 0 } ?: (planetCount - 1)
-                },
-                modifier = Modifier
-                    .defaultMinSize(minWidth = 80.dp)
-                    .padding(horizontal = 8.dp)
-                    .shadow(8.dp, RoundedCornerShape(50))
-            ) {
-                Text("Влево")
-            }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .background(color = Color.Transparent),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        Button(onClick = {
+            selectedPlanetIndex =
+                if (selectedPlanetIndex - 1 < 0) planetCount - 1 else selectedPlanetIndex - 1
+        }) {
+            Text("Влево")
+        }
 
-            Button(
-                onClick = {
-                    if (selectedPlanetIndex == 2) {
-                        navController.navigate("moon_info")
-                    }
-                },
-                modifier = Modifier
-                    .defaultMinSize(minWidth = 80.dp)
-                    .padding(horizontal = 8.dp)
-                    .shadow(8.dp, RoundedCornerShape(50))
-            ) {
-                Text("Информация")
+        Button(onClick = {
+            if (selectedPlanetIndex == 8) {
+                navController.navigate("moon_info")
             }
+        }) {
+            Text("Информация")
+        }
 
-            Button(
-                onClick = {
-                    selectedPlanetIndex = (selectedPlanetIndex + 1) % planetCount
-                },
-                modifier = Modifier
-                    .defaultMinSize(minWidth = 80.dp)
-                    .padding(horizontal = 8.dp)
-                    .shadow(8.dp, RoundedCornerShape(50))
-            ) {
-                Text("Вправо")
-            }
+        Button(onClick = {
+            selectedPlanetIndex = (selectedPlanetIndex + 1) % planetCount
+        }) {
+            Text("Вправо")
         }
     }
 }

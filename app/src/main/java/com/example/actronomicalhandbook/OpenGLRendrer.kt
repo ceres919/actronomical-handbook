@@ -54,7 +54,21 @@ class OpenGLRenderer(private var context: Context) : GLSurfaceView.Renderer {
         sun.draw(mvpMatrix)
         planets.forEach { it.draw(mvpMatrix) }
         moon.draw(mvpMatrix)
-        cube.draw(mvpMatrix, 1f)
+
+        val objectRadius : Float
+        val objectPosition : FloatArray
+        if (selectedPlanetIndex < 8){
+            objectPosition = planets[selectedPlanetIndex].getPosition()
+            objectRadius = planets[selectedPlanetIndex].radius
+        } else if (selectedPlanetIndex == 8){
+            objectPosition = moon.getPosition()
+            objectRadius = moon.radius
+
+        } else {
+            objectPosition = floatArrayOf(0f,0f,0f)
+            objectRadius = sun.radius
+        }
+        cube.draw(mvpMatrix, objectPosition, objectRadius)
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -64,7 +78,7 @@ class OpenGLRenderer(private var context: Context) : GLSurfaceView.Renderer {
         Matrix.frustumM(projectionMatrix, 0, -ratio, ratio, -1f, 1f, 1f, 50f)
     }
 
-    fun setSelectedPlanet(index: Int) {
+    fun setSelectedObjectIndex(index: Int) {
         selectedPlanetIndex = index
     }
 }

@@ -34,7 +34,6 @@ class Cube {
         3, 2, 6, 3, 6, 7   // Нижняя грань
     )
 
-    // Индексы рёбер куба
     private val edges = shortArrayOf(
         0, 1, 1, 2, 2, 3, 3, 0,  // Передняя грань
         4, 5, 5, 6, 6, 7, 7, 4,  // Задняя грань
@@ -58,7 +57,7 @@ class Cube {
             precision mediump float;
             uniform float uAlpha;
             void main() {
-                gl_FragColor = vec4(0.0, 0.0, 1.0, uAlpha);  // Прозрачный синий цвет
+                gl_FragColor = vec4(0.0, 0.0, 0.5, uAlpha);
             }
         """.trimIndent()
 
@@ -74,7 +73,7 @@ class Cube {
         val edgeFragmentShaderCode = """
             precision mediump float;
             void main() {
-                gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);  // Белый цвет
+                gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
             }
         """.trimIndent()
 
@@ -87,15 +86,32 @@ class Cube {
         }
     }
 
-    fun draw(mvpMatrix: FloatArray, planetRadius: Float) {
-        val scaleFactor = planetRadius * 1.1f
-
-        val scaledMatrix = FloatArray(16)
-        Matrix.setIdentityM(scaledMatrix, 0)
-        Matrix.scaleM(scaledMatrix, 0, scaleFactor, scaleFactor, scaleFactor)  // Масштабируем куб
+    fun draw(mvpMatrix: FloatArray, planetPosition: FloatArray, planetRadius: Float) {
+        val scaleFactor = planetRadius * 2.1f
 
         val finalMatrix = FloatArray(16)
-        Matrix.multiplyMM(finalMatrix, 0, mvpMatrix, 0, scaledMatrix, 0)
+        if (planetPosition.size < 4) {
+            val transformationMatrix = FloatArray(16)
+            Matrix.setIdentityM(transformationMatrix, 0)
+            Matrix.translateM(transformationMatrix, 0, planetPosition[0], planetPosition[1], planetPosition[2])
+            Matrix.scaleM(transformationMatrix, 0, scaleFactor, scaleFactor, scaleFactor)
+            Matrix.multiplyMM(finalMatrix, 0, mvpMatrix, 0, transformationMatrix, 0)
+        } else {
+            val planetModelMatrix = FloatArray(16)
+            Matrix.setIdentityM(planetModelMatrix, 0)
+            Matrix.rotateM(planetModelMatrix, 0, planetPosition[0], 0f, 1f, 0f)
+            Matrix.translateM(planetModelMatrix, 0, planetPosition[1], 0f, 0f)
+
+            val moonRotationMatrix = FloatArray(16)
+            Matrix.setIdentityM(moonRotationMatrix, 0)
+            Matrix.rotateM(moonRotationMatrix, 0, planetPosition[2], 0f, 1f, 0f)
+            Matrix.translateM(moonRotationMatrix, 0, planetPosition[3], 0f, 0f)
+
+            Matrix.scaleM(moonRotationMatrix, 0, scaleFactor, scaleFactor, scaleFactor)
+            Matrix.multiplyMM(finalMatrix, 0, planetModelMatrix, 0, moonRotationMatrix, 0)
+            Matrix.multiplyMM(finalMatrix, 0, mvpMatrix, 0, finalMatrix, 0)
+
+        }
 
         GLES20.glUseProgram(program)
 
@@ -107,6 +123,7 @@ class Cube {
         GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, vertexBuffer)
 
         GLES20.glUniformMatrix4fv(mvpMatrixHandle, 1, false, finalMatrix, 0)
+
         GLES20.glUniform1f(alphaHandle, 0.5f)
 
         GLES20.glEnable(GLES20.GL_BLEND)
@@ -126,13 +143,11 @@ class Cube {
         GLES20.glVertexAttribPointer(edgePositionHandle, 3, GLES20.GL_FLOAT, false, 0, vertexBuffer)
 
         GLES20.glUniformMatrix4fv(edgeMvpMatrixHandle, 1, false, finalMatrix, 0)
-
-//        GLES20.glLineWidth(5f)
         GLES20.glDrawElements(GLES20.GL_LINES, edges.size, GLES20.GL_UNSIGNED_SHORT, edgeBuffer)
 
         GLES20.glDisableVertexAttribArray(edgePositionHandle)
-//        GLES20.glLineWidth(1f)
     }
+
 
     private fun createFloatBuffer(data: FloatArray): FloatBuffer {
         return ByteBuffer.allocateDirect(data.size * 4).run {
