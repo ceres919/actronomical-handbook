@@ -159,7 +159,6 @@ abstract class CelestialObject(
             indexBuffer
         )
 
-
         GLES20.glDisableVertexAttribArray(positionHandle)
         GLES20.glDisableVertexAttribArray(texCoordHandle)
     }
@@ -238,6 +237,13 @@ class Planet(
 
         super.draw(finalMatrix)
     }
+
+    fun getPosition(): FloatArray {
+        val adjustedAngle = orbitAngle + 90f
+        val x = orbitRadius * sin(Math.toRadians(adjustedAngle.toDouble())).toFloat()
+        val z = orbitRadius * cos(Math.toRadians(adjustedAngle.toDouble())).toFloat()
+        return floatArrayOf(x, 0f, z)
+    }
 }
 
 class Moon(
@@ -245,11 +251,11 @@ class Moon(
     radius: Float,
     textureResId: Int,
     private val planet: Planet,
-    private val orbitRadius: Float,
+    val orbitRadius: Float,
     private val orbitSpeed: Float
 ) : CelestialObject(context, radius, textureResId) {
 
-    private var angle: Float = 0.0f
+    var angle: Float = 0.0f
 
     override fun draw(mvpMatrix: FloatArray) {
         angle += orbitSpeed
@@ -270,8 +276,11 @@ class Moon(
 
         super.draw(finalMatrix)
     }
-}
 
+    fun getPosition(): FloatArray {
+        return floatArrayOf(planet.orbitAngle, planet.orbitRadius, angle, orbitRadius)
+    }
+}
 
 
 class Orbit(private val radius: Float, private val segments: Int = 100) {
@@ -326,7 +335,7 @@ class Orbit(private val radius: Float, private val segments: Int = 100) {
         private const val FRAGMENT_SHADER_CODE = """
             precision mediump float;
             void main() {
-                gl_FragColor = vec4(1.0, 1.0, 1.0, 0.2);  // Белый цвет с прозрачностью 50%
+                gl_FragColor = vec4(1.0, 1.0, 1.0, 0.2);
             }
         """
     }

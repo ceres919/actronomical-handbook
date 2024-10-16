@@ -3,9 +3,8 @@ package com.example.actronomicalhandbook
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
@@ -13,7 +12,16 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import android.content.Context
 import android.opengl.GLSurfaceView
+import androidx.compose.foundation.background
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.navigation.NavController
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,25 +39,70 @@ fun MainNavRouter() {
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = "news") {
         composable("news") { NewsBanner(navController) }
-        composable("opengl") { OpenGLScreen() }
+        composable("opengl") { OpenGLScreen(navController) }
+//        composable("moon_info") { InfoScreen() }
     }
 }
 
-class MyGLSurfaceView(context: Context) : GLSurfaceView(context) {
+class MyGLSurfaceView(context: Context, private val renderer: OpenGLRenderer) : GLSurfaceView(context) {
     init {
         setEGLContextClientVersion(2)
-        setRenderer(OpenGLRenderer(context))
+        setRenderer(renderer)
+    }
+
+    fun setSelectedPlanet(index: Int) {
+        renderer.setSelectedObjectIndex(index)
     }
 }
 
 @Composable
-fun OpenGLScreen() {
-    AndroidView(
-        factory = { context ->
-            MyGLSurfaceView(context)
-        },
-        modifier = Modifier.fillMaxSize()
-    )
+fun OpenGLScreen(navController: NavController) {
+    var selectedPlanetIndex by remember { mutableStateOf(0) }
+    val planetCount = 10
+
+    val context = LocalContext.current
+    val renderer = remember { OpenGLRenderer(context) }
+
+    Box() {
+        AndroidView(
+            factory = { ctx ->
+                MyGLSurfaceView(ctx, renderer).apply {
+                    setSelectedPlanet(selectedPlanetIndex)
+                }
+            },
+            update = { view ->
+                view.setSelectedPlanet(selectedPlanetIndex)
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .background(color = Color.Transparent),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        Button(onClick = {
+            selectedPlanetIndex =
+                if (selectedPlanetIndex - 1 < 0) planetCount - 1 else selectedPlanetIndex - 1
+        }) {
+            Text("Влево")
+        }
+
+        Button(onClick = {
+            if (selectedPlanetIndex == 8) {
+                navController.navigate("moon_info")
+            }
+        }) {
+            Text("Информация")
+        }
+
+        Button(onClick = {
+            selectedPlanetIndex = (selectedPlanetIndex + 1) % planetCount
+        }) {
+            Text("Вправо")
+        }
+    }
 }
-
-

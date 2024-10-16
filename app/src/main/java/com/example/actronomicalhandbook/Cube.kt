@@ -1,12 +1,13 @@
 package com.example.actronomicalhandbook
 
 import android.opengl.GLES20
+import android.opengl.Matrix
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.ShortBuffer
 
-class Cube : Shape() {
+class Cube {
     private var program: Int = 0
     private var edgeProgram: Int = 0
     private val vertexBuffer: FloatBuffer
@@ -33,7 +34,6 @@ class Cube : Shape() {
         3, 2, 6, 3, 6, 7   // Нижняя грань
     )
 
-    // Индексы рёбер куба
     private val edges = shortArrayOf(
         0, 1, 1, 2, 2, 3, 3, 0,  // Передняя грань
         4, 5, 5, 6, 6, 7, 7, 4,  // Задняя грань
@@ -44,10 +44,7 @@ class Cube : Shape() {
         vertexBuffer = createFloatBuffer(vertices)
         indexBuffer = createShortBuffer(indices)
         edgeBuffer = createShortBuffer(edges)
-    }
 
-    fun init() {
-        // Программа для граней куба (с прозрачностью)
         val vertexShaderCode = """
             attribute vec4 vPosition;
             uniform mat4 uMVPMatrix;
@@ -60,7 +57,7 @@ class Cube : Shape() {
             precision mediump float;
             uniform float uAlpha;
             void main() {
-                gl_FragColor = vec4(0.0, 0.0, 1.0, uAlpha);  // Прозрачный синий цвет
+                gl_FragColor = vec4(0.0, 0.0, 0.5, uAlpha);
             }
         """.trimIndent()
 
@@ -73,11 +70,10 @@ class Cube : Shape() {
             GLES20.glLinkProgram(it)
         }
 
-        // Программа для рёбер (белые рёбра)
         val edgeFragmentShaderCode = """
             precision mediump float;
             void main() {
-                gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);  // Белый цвет
+                gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
             }
         """.trimIndent()
 
@@ -90,8 +86,33 @@ class Cube : Shape() {
         }
     }
 
-    override fun draw(mvpMatrix: FloatArray) {
-        // Рендерим грани куба с прозрачностью
+    fun draw(mvpMatrix: FloatArray, planetPosition: FloatArray, planetRadius: Float) {
+        val scaleFactor = planetRadius * 2.1f
+
+        val finalMatrix = FloatArray(16)
+        if (planetPosition.size < 4) {
+            val transformationMatrix = FloatArray(16)
+            Matrix.setIdentityM(transformationMatrix, 0)
+            Matrix.translateM(transformationMatrix, 0, planetPosition[0], planetPosition[1], planetPosition[2])
+            Matrix.scaleM(transformationMatrix, 0, scaleFactor, scaleFactor, scaleFactor)
+            Matrix.multiplyMM(finalMatrix, 0, mvpMatrix, 0, transformationMatrix, 0)
+        } else {
+            val planetModelMatrix = FloatArray(16)
+            Matrix.setIdentityM(planetModelMatrix, 0)
+            Matrix.rotateM(planetModelMatrix, 0, planetPosition[0], 0f, 1f, 0f)
+            Matrix.translateM(planetModelMatrix, 0, planetPosition[1], 0f, 0f)
+
+            val moonRotationMatrix = FloatArray(16)
+            Matrix.setIdentityM(moonRotationMatrix, 0)
+            Matrix.rotateM(moonRotationMatrix, 0, planetPosition[2], 0f, 1f, 0f)
+            Matrix.translateM(moonRotationMatrix, 0, planetPosition[3], 0f, 0f)
+
+            Matrix.scaleM(moonRotationMatrix, 0, scaleFactor, scaleFactor, scaleFactor)
+            Matrix.multiplyMM(finalMatrix, 0, planetModelMatrix, 0, moonRotationMatrix, 0)
+            Matrix.multiplyMM(finalMatrix, 0, mvpMatrix, 0, finalMatrix, 0)
+
+        }
+
         GLES20.glUseProgram(program)
 
         val positionHandle = GLES20.glGetAttribLocation(program, "vPosition")
@@ -101,10 +122,10 @@ class Cube : Shape() {
         GLES20.glEnableVertexAttribArray(positionHandle)
         GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, vertexBuffer)
 
-        GLES20.glUniformMatrix4fv(mvpMatrixHandle, 1, false, mvpMatrix, 0)
-        GLES20.glUniform1f(alphaHandle, 0.1f)  // Прозрачность 50%
+        GLES20.glUniformMatrix4fv(mvpMatrixHandle, 1, false, finalMatrix, 0)
 
-        // Включаем режим смешивания для прозрачности
+        GLES20.glUniform1f(alphaHandle, 0.5f)
+
         GLES20.glEnable(GLES20.GL_BLEND)
         GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
 
@@ -113,7 +134,6 @@ class Cube : Shape() {
         GLES20.glDisableVertexAttribArray(positionHandle)
         GLES20.glDisable(GLES20.GL_BLEND)
 
-        // Рендерим рёбра куба
         GLES20.glUseProgram(edgeProgram)
 
         val edgePositionHandle = GLES20.glGetAttribLocation(edgeProgram, "vPosition")
@@ -122,14 +142,12 @@ class Cube : Shape() {
         GLES20.glEnableVertexAttribArray(edgePositionHandle)
         GLES20.glVertexAttribPointer(edgePositionHandle, 3, GLES20.GL_FLOAT, false, 0, vertexBuffer)
 
-        GLES20.glUniformMatrix4fv(edgeMvpMatrixHandle, 1, false, mvpMatrix, 0)
-
-        // Рисуем рёбра как линии
-        GLES20.glLineWidth(5f)
+        GLES20.glUniformMatrix4fv(edgeMvpMatrixHandle, 1, false, finalMatrix, 0)
         GLES20.glDrawElements(GLES20.GL_LINES, edges.size, GLES20.GL_UNSIGNED_SHORT, edgeBuffer)
 
         GLES20.glDisableVertexAttribArray(edgePositionHandle)
     }
+
 
     private fun createFloatBuffer(data: FloatArray): FloatBuffer {
         return ByteBuffer.allocateDirect(data.size * 4).run {
