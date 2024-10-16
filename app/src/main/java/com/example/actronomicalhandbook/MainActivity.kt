@@ -40,7 +40,10 @@ fun MainNavRouter() {
     NavHost(navController = navController, startDestination = "news") {
         composable("news") { NewsBanner(navController) }
         composable("opengl") { OpenGLScreen(navController) }
-//        composable("moon_info") { InfoScreen() }
+        composable("moon_info/{selectedPlanetIndex}") { backStackEntry ->
+            val selectedPlanetIndex = backStackEntry.arguments?.getString("selectedPlanetIndex")?.toInt() ?: 0
+            InfoScreen(selectedPlanetIndex = selectedPlanetIndex)
+        }
     }
 }
 
@@ -92,9 +95,7 @@ fun OpenGLScreen(navController: NavController) {
         }
 
         Button(onClick = {
-            if (selectedPlanetIndex == 8) {
-                navController.navigate("moon_info")
-            }
+            navController.navigate("moon_info/$selectedPlanetIndex")
         }) {
             Text("Информация")
         }
