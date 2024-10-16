@@ -8,17 +8,17 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 
-class Square(private val context: Context) : Shape() {
+class Square(private val context: Context) {
     private var program: Int = 0
     private val vertexBuffer: FloatBuffer
     private val textureBuffer: FloatBuffer
     private var textureId: Int = 0
 
     private val vertices = floatArrayOf(
-        -0.5f, 0.5f, 0.0f,   // Верхний левый
-        0.5f, 0.5f, 0.0f,    // Верхний правый
-        0.5f, -0.5f, 0.0f,   // Нижний правый
-        -0.5f, -0.5f, 0.0f   // Нижний левый
+        -1.0f, 1.0f, 0.0f,   // Верхний левый
+        1.0f, 1.0f, 0.0f,    // Верхний правый
+        1.0f, -1.0f, 0.0f,   // Нижний правый
+        -1.0f, -1.0f, 0.0f   // Нижний левый
     )
 
     private val textureCoords = floatArrayOf(
@@ -31,18 +31,14 @@ class Square(private val context: Context) : Shape() {
     init {
         vertexBuffer = createFloatBuffer(vertices)
         textureBuffer = createFloatBuffer(textureCoords)
-    }
-
-    fun init() {
-        textureId = loadTexture(R.drawable.galaxy)
+        textureId = loadTexture(R.drawable.milky_way)
 
         val vertexShaderCode = """
             attribute vec4 vPosition;
             attribute vec2 aTexCoord;
             varying vec2 vTexCoord;
-            uniform mat4 uMVPMatrix;
             void main() {
-                gl_Position = uMVPMatrix * vPosition;
+                gl_Position = vPosition;  // Без матрицы для 2D
                 vTexCoord = aTexCoord;
             }
         """.trimIndent()
@@ -66,12 +62,11 @@ class Square(private val context: Context) : Shape() {
         }
     }
 
-    override fun draw(mvpMatrix: FloatArray) {
+    fun draw() {
         GLES20.glUseProgram(program)
 
         val positionHandle = GLES20.glGetAttribLocation(program, "vPosition")
         val texCoordHandle = GLES20.glGetAttribLocation(program, "aTexCoord")
-        val mvpMatrixHandle = GLES20.glGetUniformLocation(program, "uMVPMatrix")
         val textureHandle = GLES20.glGetUniformLocation(program, "uTexture")
 
         GLES20.glEnableVertexAttribArray(positionHandle)
@@ -79,8 +74,6 @@ class Square(private val context: Context) : Shape() {
 
         GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, vertexBuffer)
         GLES20.glVertexAttribPointer(texCoordHandle, 2, GLES20.GL_FLOAT, false, 0, textureBuffer)
-
-        GLES20.glUniformMatrix4fv(mvpMatrixHandle, 1, false, mvpMatrix, 0)
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId)

@@ -11,73 +11,57 @@ abstract class Shape {
     abstract fun draw(mvpMatrix: FloatArray)
 }
 
-class OpenGLRenderer(context: Context) : GLSurfaceView.Renderer {
-    private val square = Square(context)
-    private val cube = Cube()
-    private val mvpMatrix = FloatArray(16)
-    private val modelMatrix = FloatArray(16)
+class OpenGLRenderer(private var context: Context) : GLSurfaceView.Renderer {
+    private lateinit var square: Square
+    private lateinit var sun: Sun
+    private lateinit var moon: Moon
+    private lateinit var planets: List<Planet>
+    private lateinit var orbits: List<Orbit>
+
     private val projectionMatrix = FloatArray(16)
     private val viewMatrix = FloatArray(16)
-    private var angle = 0f
+    private val mvpMatrix = FloatArray(16)
 
-    override fun onSurfaceCreated(gl: GL10, config: EGLConfig) {
-        GLES20.glClearColor(0f, 0f, 0f, 1f)  // Чёрный фон
-        GLES20.glEnable(GLES20.GL_DEPTH_TEST) // Включение теста глубины
-        GLES20.glEnable(GLES20.GL_BLEND)      // Включение смешивания для прозрачности
+    override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
+        GLES20.glEnable(GLES20.GL_DEPTH_TEST)
+        GLES20.glEnable(GLES20.GL_BLEND)
         GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
+        GLES20.glClearColor(0f, 0f, 0f, 1f)
 
-        square.init()
-        cube.init()
-        setupViewMatrix() // Видовая матрица устанавливается один раз
+        square = Square(context)
+        sun = Sun(context, 0.6f, R.drawable.sun)
+        planets = listOf(
+            Planet(context, 0.15f, R.drawable.mercury, 1.0f, 1.1f, 0.1f),
+            Planet(context, 0.19f, R.drawable.venus, 1.7f, 0.5f, 0.1f),
+            Planet(context, 0.2f, R.drawable.earth, 2.4f, 0.4f, 3f),
+            Planet(context, 0.18f, R.drawable.mars, 3.3f, 0.3f, 3f),
+            Planet(context, 0.4f, R.drawable.jupiter, 4.8f, 0.22f, 2f),
+            Planet(context, 0.3f, R.drawable.saturn, 6f, 0.15f, 2f),
+            Planet(context, 0.28f, R.drawable.uranus, 7f, 0.12f, 2f),
+            Planet(context, 0.28f, R.drawable.neptune, 8f, 0.08f, 2f),
+        )
+        moon = Moon(context, 0.05f, R.drawable.moon, planets[2],0.4f, 1.0f)
+        orbits = planets.map { Orbit(it.orbitRadius) }
     }
 
-    override fun onDrawFrame(gl: GL10) {
+    override fun onDrawFrame(gl: GL10?) {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
 
-        // Отрисовка квадрата
-        drawObject(square, 3f, 3f, 3f, 0f, -0.15f, 0f)
+        Matrix.multiplyMM(mvpMatrix, 0, projectionMatrix, 0, viewMatrix, 0)
+        GLES20.glDisable(GLES20.GL_DEPTH_TEST)
+        square.draw()
+        GLES20.glEnable(GLES20.GL_DEPTH_TEST)
 
-        // Отрисовка куба
-        drawObject(cube, 0.25f, 0.25f, 0.25f, 0f,0.25f, -2f, angle)
-        angle += 1f
+        orbits.forEach { it.draw(mvpMatrix) }
+        sun.draw(mvpMatrix)
+        planets.forEach { it.draw(mvpMatrix) }
+        moon.draw(mvpMatrix)
     }
 
-    private fun setupViewMatrix() {
-        // Камера находится выше по оси Y и смотрит вниз на центр куба
-        Matrix.setLookAtM(
-            viewMatrix, 0,
-            0f, 1f, -6f,  // Позиция камеры (над кубом, Y = 5)
-            0f, 0f, 0f,  // Точка, на которую смотрит камера (центр куба)
-            0f, 1f, 0f  // Вектор вверх (по оси -Z)
-        )
-    }
-
-    override fun onSurfaceChanged(gl: GL10, width: Int, height: Int) {
+    override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
         GLES20.glViewport(0, 0, width, height)
         val ratio: Float = width.toFloat() / height.toFloat()
-
-        // Проекция сверху, чтобы куб оставался в пределах экрана
-        Matrix.frustumM(projectionMatrix, 0, -ratio, ratio, -1f, 1f, 3f, 10f)
-    }
-
-    private fun drawObject(
-        shape: Shape, scaleX: Float, scaleY: Float, scaleZ: Float,
-        translateX: Float, translateY: Float, translateZ: Float,
-        rotationY: Float = 0f
-    ) {
-        // Установка модели для объекта
-        Matrix.setIdentityM(modelMatrix, 0)
-        Matrix.translateM(modelMatrix, 0, translateX, translateY, translateZ)
-        Matrix.scaleM(modelMatrix, 0, scaleX, scaleY, scaleZ)
-        if (rotationY != 0f) {
-            Matrix.rotateM(modelMatrix, 0, rotationY, 0f, 1f, 0f)
-        }
-
-        // Подготовка итоговой матрицы для отрисовки (MVP = Projection * View * Model)
-        Matrix.multiplyMM(mvpMatrix, 0, projectionMatrix, 0, viewMatrix, 0)
-        Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, modelMatrix, 0)
-
-        // Рендеринг объекта
-        shape.draw(mvpMatrix)
+        Matrix.setLookAtM(viewMatrix, 0, 0f, 3f, -10f, 0f, 0f, 0f, 0f, 1f, 0f)
+        Matrix.frustumM(projectionMatrix, 0, -ratio, ratio, -1f, 1f, 1f, 50f)
     }
 }
