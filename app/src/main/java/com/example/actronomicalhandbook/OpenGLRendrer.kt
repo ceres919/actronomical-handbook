@@ -1,5 +1,6 @@
 package com.example.actronomicalhandbook
 
+import BlackHole
 import android.content.Context
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
@@ -8,6 +9,8 @@ import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 class OpenGLRenderer(private var context: Context) : GLSurfaceView.Renderer {
+    private var width = 0
+    private var height = 0
     private lateinit var square: Square
     private lateinit var sun: Sun
     private lateinit var moon: Moon
@@ -15,6 +18,10 @@ class OpenGLRenderer(private var context: Context) : GLSurfaceView.Renderer {
     private lateinit var orbits: List<Orbit>
     private lateinit var cube: Cube
     private var selectedPlanetIndex = 0
+
+    private lateinit var blackHole: BlackHole
+    private var blackHolePosition = -10f
+    private var blackHoleSpeed = 0.02f
     private val projectionMatrix = FloatArray(16)
     private val viewMatrix = FloatArray(16)
     private val mvpMatrix = FloatArray(16)
@@ -40,6 +47,7 @@ class OpenGLRenderer(private var context: Context) : GLSurfaceView.Renderer {
         )
         moon = Moon(context, 0.05f, R.drawable.moon, planets[2],0.4f, 1.0f)
         orbits = planets.map { Orbit(it.orbitRadius) }
+        blackHole = BlackHole(context, R.drawable.hole)
     }
 
     override fun onDrawFrame(gl: GL10?) {
@@ -49,6 +57,11 @@ class OpenGLRenderer(private var context: Context) : GLSurfaceView.Renderer {
         GLES20.glDisable(GLES20.GL_DEPTH_TEST)
         square.draw()
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
+
+        blackHolePosition += blackHoleSpeed
+        if (blackHolePosition > 15f) {
+            blackHolePosition = -15f
+        }
 
         orbits.forEach { it.draw(mvpMatrix) }
         sun.draw(mvpMatrix)
@@ -69,9 +82,13 @@ class OpenGLRenderer(private var context: Context) : GLSurfaceView.Renderer {
             objectRadius = sun.radius
         }
         cube.draw(mvpMatrix, objectPosition, objectRadius)
+        blackHole.draw(mvpMatrix, blackHolePosition)
+
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
+        this.height = height
+        this.width = width
         GLES20.glViewport(0, 0, width, height)
         val ratio: Float = width.toFloat() / height.toFloat()
         Matrix.setLookAtM(viewMatrix, 0, 0f, 3f, -10f, 0f, 0f, 0f, 0f, 1f, 0f)
